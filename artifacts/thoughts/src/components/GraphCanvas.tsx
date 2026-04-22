@@ -224,9 +224,11 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
             }
             // Grab mode: rotate orbit AND pan target proportional to hand movement
             const rotSpeed = 2.4;
-            controls.setAzimuthalAngle(controls.getAzimuthalAngle() - dx * rotSpeed);
-            const newPolar = controls.getPolarAngle() - dy * rotSpeed;
-            controls.setPolarAngle(Math.max(0.15, Math.min(Math.PI - 0.15, newPolar)));
+            controls.target.add(new THREE.Vector3(dx * rotSpeed, -dy * rotSpeed, 0));
+            const orbitOffset = new THREE.Vector3().subVectors(camera.position, controls.target);
+            orbitOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
+            orbitOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), -dy * rotSpeed);
+            camera.position.copy(controls.target).add(orbitOffset);
 
             // Pan target slightly to give translation feel — perpendicular to view dir
             const panAmount = camera.position.distanceTo(controls.target) * 0.4;
@@ -252,9 +254,11 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
             wasGrabbing = false;
             // Open hand: rotate the graph based on cursor movement
             const rotSpeed = 1.6;
-            controls.setAzimuthalAngle(controls.getAzimuthalAngle() - dx * rotSpeed);
-            const newPolar = controls.getPolarAngle() - dy * rotSpeed;
-            controls.setPolarAngle(Math.max(0.15, Math.min(Math.PI - 0.15, newPolar)));
+            controls.target.add(new THREE.Vector3(dx * rotSpeed, -dy * rotSpeed, 0));
+            const orbitOffset = new THREE.Vector3().subVectors(camera.position, controls.target);
+            orbitOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
+            orbitOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), -dy * rotSpeed);
+            camera.position.copy(controls.target).add(orbitOffset);
           }
         }
         lastCursor = { x: cursor.x, y: cursor.y };
@@ -295,7 +299,7 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
           const hoveredNode = topologyRef.current.nodes[hId];
           if (hoveredNode) {
             connectedNodes.add(hoveredNode.id);
-            topologyRef.current.edges.forEach((e) => {
+            topologyRef.current.edges.forEach((e: { source: number; target: number }) => {
               if (e.source === hoveredNode.id) connectedNodes.add(e.target);
               if (e.target === hoveredNode.id) connectedNodes.add(e.source);
             });
@@ -344,9 +348,9 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
 
           const hoveredId = hId !== null ? topologyRef.current.nodes[hId]?.id : undefined;
 
-          topologyRef.current.edges.forEach((edge, i) => {
-            const sIdx = topologyRef.current!.nodes.findIndex((n) => n.id === edge.source);
-            const tIdx = topologyRef.current!.nodes.findIndex((n) => n.id === edge.target);
+          topologyRef.current.edges.forEach((edge: { source: number; target: number; weight: number }, i: number) => {
+            const sIdx = topologyRef.current!.nodes.findIndex((n: { id: number }) => n.id === edge.source);
+            const tIdx = topologyRef.current!.nodes.findIndex((n: { id: number }) => n.id === edge.target);
             if (sIdx === -1 || tIdx === -1) return;
 
             positions[i * 6] = currentPositions.current![sIdx * 3]!;
@@ -422,7 +426,7 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
     const curPos = new Float32Array(nodes.length * 3);
     const tarPos = new Float32Array(nodes.length * 3);
 
-    nodes.forEach((node, i) => {
+    nodes.forEach((node: { id: number; x: number; y: number; z: number; cluster: number }, i: number) => {
       const sameSize = currentPositions.current && currentPositions.current.length === nodes.length * 3;
       const startX = sameSize ? currentPositions.current![i * 3]! : (Math.random() - 0.5) * 50;
       const startY = sameSize ? currentPositions.current![i * 3 + 1]! : (Math.random() - 0.5) * 50;
@@ -457,9 +461,9 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
     const linePositions = new Float32Array(edges.length * 2 * 3);
     const lineColors = new Float32Array(edges.length * 2 * 3);
 
-    edges.forEach((edge, i) => {
-      const sIdx = nodes.findIndex((n) => n.id === edge.source);
-      const tIdx = nodes.findIndex((n) => n.id === edge.target);
+    edges.forEach((edge: { source: number; target: number; weight: number }, i: number) => {
+      const sIdx = nodes.findIndex((n: { id: number }) => n.id === edge.source);
+      const tIdx = nodes.findIndex((n: { id: number }) => n.id === edge.target);
       if (sIdx === -1 || tIdx === -1) return;
 
       linePositions[i * 6] = curPos[sIdx * 3]!;
