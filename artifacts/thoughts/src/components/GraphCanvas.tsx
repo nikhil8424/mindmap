@@ -254,11 +254,10 @@ export function GraphCanvas({ topology, gestureFrameRef, gestureEnabled, onNodeC
             wasGrabbing = false;
             // Open hand: rotate the graph based on cursor movement
             const rotSpeed = 1.6;
-            controls.target.add(new THREE.Vector3(dx * rotSpeed, -dy * rotSpeed, 0));
-            const orbitOffset = new THREE.Vector3().subVectors(camera.position, controls.target);
-            orbitOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
-            orbitOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), -dy * rotSpeed);
-            camera.position.copy(controls.target).add(orbitOffset);
+            const targetOffset = new THREE.Vector3().subVectors(camera.position, controls.target);
+            targetOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
+            targetOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), -dy * rotSpeed);
+            camera.position.copy(controls.target).add(targetOffset);
           }
         }
         lastCursor = { x: cursor.x, y: cursor.y };
