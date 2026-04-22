@@ -6,4 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./graphEdge";
+export * from "./graphNode";
+export * from "./graphRequest";
+export * from "./graphResponse";
 export * from "./healthStatus";
+export * from "./topology";

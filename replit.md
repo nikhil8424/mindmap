@@ -24,4 +24,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
+## Artifacts
+
+- **thoughts** (`/`) — "Topologies of Thoughts" 3D knowledge graph. Notes are embedded with `Xenova/all-MiniLM-L6-v2` (transformers.js) on the server, similarity matrix + KMeans + force layout produce three topologies (centralized / decentralized / distributed), rendered with Three.js. Optional MediaPipe Hands gesture controls.
+- **api-server** (`/api`) — shared Express API. Adds `POST /api/graph` for embeddings + topology computation.
+
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

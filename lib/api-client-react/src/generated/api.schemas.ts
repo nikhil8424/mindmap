@@ -8,3 +8,46 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface GraphRequest {
+  /** @minItems 2 */
+  notes: string[];
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  threshold?: number;
+  /** @minimum 2 */
+  clusters?: number;
+}
+
+export interface GraphNode {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
+  z: number;
+  cluster: number;
+}
+
+export interface GraphEdge {
+  source: number;
+  target: number;
+  weight: number;
+}
+
+export interface Topology {
+  name: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  /** Nodes data as CSV */
+  nodesCsv: string;
+  /** Edges data as CSV */
+  edgesCsv: string;
+}
+
+export interface GraphResponse {
+  centralized: Topology;
+  decentralized: Topology;
+  distributed: Topology;
+}

@@ -5,18 +5,21 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type { GraphRequest, GraphResponse, HealthStatus } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -25,7 +28,6 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const getHealthCheckUrl = () => {
@@ -99,3 +101,90 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
+ * @summary Build a 3D knowledge graph from notes
+ */
+export const getBuildGraphUrl = () => {
+  return `/api/graph`;
+};
+
+export const buildGraph = async (
+  graphRequest: GraphRequest,
+  options?: RequestInit,
+): Promise<GraphResponse> => {
+  return customFetch<GraphResponse>(getBuildGraphUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(graphRequest),
+  });
+};
+
+export const getBuildGraphMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof buildGraph>>,
+    TError,
+    { data: BodyType<GraphRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof buildGraph>>,
+  TError,
+  { data: BodyType<GraphRequest> },
+  TContext
+> => {
+  const mutationKey = ["buildGraph"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof buildGraph>>,
+    { data: BodyType<GraphRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return buildGraph(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BuildGraphMutationResult = NonNullable<
+  Awaited<ReturnType<typeof buildGraph>>
+>;
+export type BuildGraphMutationBody = BodyType<GraphRequest>;
+export type BuildGraphMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Build a 3D knowledge graph from notes
+ */
+export const useBuildGraph = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof buildGraph>>,
+    TError,
+    { data: BodyType<GraphRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof buildGraph>>,
+  TError,
+  { data: BodyType<GraphRequest> },
+  TContext
+> => {
+  return useMutation(getBuildGraphMutationOptions(options));
+};

@@ -10,13 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: graph
+    description: Knowledge graph operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +25,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /graph:
+    post:
+      operationId: buildGraph
+      tags: [graph]
+      summary: Build a 3D knowledge graph from notes
+      description: Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphRequest"
+      responses:
+        "200":
+          description: Graph generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +53,78 @@ components:
           type: string
       required:
         - status
-
+    GraphRequest:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            type: string
+          minItems: 2
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.35
+        clusters:
+          type: integer
+          minimum: 2
+          default: 3
+      required:
+        - notes
+    GraphNode:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        z:
+          type: number
+        cluster:
+          type: integer
+      required: [id, text, x, y, z, cluster]
+    GraphEdge:
+      type: object
+      properties:
+        source:
+          type: integer
+        target:
+          type: integer
+        weight:
+          type: number
+      required: [source, target, weight]
+    Topology:
+      type: object
+      properties:
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        nodesCsv:
+          type: string
+          description: Nodes data as CSV
+        edgesCsv:
+          type: string
+          description: Edges data as CSV
+      required: [name, nodes, edges, nodesCsv, edgesCsv]
+    GraphResponse:
+      type: object
+      properties:
+        centralized:
+          $ref: "#/components/schemas/Topology"
+        decentralized:
+          $ref: "#/components/schemas/Topology"
+        distributed:
+          $ref: "#/components/schemas/Topology"
+      required: [centralized, decentralized, distributed]

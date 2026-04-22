@@ -8,9 +8,103 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
+});
+
+/**
+ * Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
+ * @summary Build a 3D knowledge graph from notes
+ */
+export const buildGraphBodyNotesMin = 2;
+
+export const buildGraphBodyThresholdDefault = 0.35;
+export const buildGraphBodyThresholdMin = 0;
+export const buildGraphBodyThresholdMax = 1;
+
+export const buildGraphBodyClustersDefault = 3;
+export const buildGraphBodyClustersMin = 2;
+
+export const BuildGraphBody = zod.object({
+  notes: zod.array(zod.string()).min(buildGraphBodyNotesMin),
+  threshold: zod
+    .number()
+    .min(buildGraphBodyThresholdMin)
+    .max(buildGraphBodyThresholdMax)
+    .default(buildGraphBodyThresholdDefault),
+  clusters: zod
+    .number()
+    .min(buildGraphBodyClustersMin)
+    .default(buildGraphBodyClustersDefault),
+});
+
+export const BuildGraphResponse = zod.object({
+  centralized: zod.object({
+    name: zod.string(),
+    nodes: zod.array(
+      zod.object({
+        id: zod.number(),
+        text: zod.string(),
+        x: zod.number(),
+        y: zod.number(),
+        z: zod.number(),
+        cluster: zod.number(),
+      }),
+    ),
+    edges: zod.array(
+      zod.object({
+        source: zod.number(),
+        target: zod.number(),
+        weight: zod.number(),
+      }),
+    ),
+    nodesCsv: zod.string().describe("Nodes data as CSV"),
+    edgesCsv: zod.string().describe("Edges data as CSV"),
+  }),
+  decentralized: zod.object({
+    name: zod.string(),
+    nodes: zod.array(
+      zod.object({
+        id: zod.number(),
+        text: zod.string(),
+        x: zod.number(),
+        y: zod.number(),
+        z: zod.number(),
+        cluster: zod.number(),
+      }),
+    ),
+    edges: zod.array(
+      zod.object({
+        source: zod.number(),
+        target: zod.number(),
+        weight: zod.number(),
+      }),
+    ),
+    nodesCsv: zod.string().describe("Nodes data as CSV"),
+    edgesCsv: zod.string().describe("Edges data as CSV"),
+  }),
+  distributed: zod.object({
+    name: zod.string(),
+    nodes: zod.array(
+      zod.object({
+        id: zod.number(),
+        text: zod.string(),
+        x: zod.number(),
+        y: zod.number(),
+        z: zod.number(),
+        cluster: zod.number(),
+      }),
+    ),
+    edges: zod.array(
+      zod.object({
+        source: zod.number(),
+        target: zod.number(),
+        weight: zod.number(),
+      }),
+    ),
+    nodesCsv: zod.string().describe("Nodes data as CSV"),
+    edgesCsv: zod.string().describe("Edges data as CSV"),
+  }),
 });
