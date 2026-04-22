@@ -35,7 +35,7 @@ function Home() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { gestureState, cameraMovement } = useHandGesture(gestureEnabled, videoRef);
+  const { gestureState, frameRef } = useHandGesture(gestureEnabled, videoRef);
 
   const buildGraph = useBuildGraph();
 
@@ -67,9 +67,10 @@ function Home() {
   return (
     <div className="relative min-h-screen w-full bg-background overflow-hidden font-sans text-foreground">
       {/* 3D Canvas Background */}
-      <GraphCanvas 
-        topology={activeTopology} 
-        cameraMovement={cameraMovement}
+      <GraphCanvas
+        topology={activeTopology}
+        gestureFrameRef={frameRef}
+        gestureEnabled={gestureEnabled}
         onNodeClick={setSelectedNode}
       />
 
@@ -155,8 +156,20 @@ function Home() {
               <div className="text-[10px] text-white/40 flex items-center gap-2">
                 {gestureEnabled && (
                   <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    {gestureState !== 'none' ? gestureState : 'tracking'}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                        gestureState === 'grab'
+                          ? 'bg-pink-400'
+                          : gestureState === 'tracking'
+                          ? 'bg-cyan-300'
+                          : 'bg-white/40'
+                      }`}
+                    />
+                    {gestureState === 'grab'
+                      ? 'grab'
+                      : gestureState === 'tracking'
+                      ? 'tracking'
+                      : 'looking for hand'}
                   </span>
                 )}
               </div>
@@ -173,14 +186,23 @@ function Home() {
 
       {/* Webcam Preview */}
       {gestureEnabled && (
-        <div className="absolute bottom-6 left-6 w-32 aspect-video bg-black rounded-lg overflow-hidden border border-white/10 shadow-lg z-50">
-          <video 
-            ref={videoRef} 
-            className="w-full h-full object-cover scale-x-[-1]" 
-            autoPlay 
+        <div className="absolute bottom-6 left-6 w-40 aspect-video bg-black rounded-lg overflow-hidden border border-white/10 shadow-lg z-50">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover scale-x-[-1]"
+            autoPlay
             playsInline
             muted
           />
+          <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-black/60 text-white/80 backdrop-blur">
+            {gestureState === 'grab' ? (
+              <span className="text-pink-300">GRAB</span>
+            ) : gestureState === 'tracking' ? (
+              <span className="text-cyan-300">TRACK</span>
+            ) : (
+              <span className="text-white/50">SEARCHING</span>
+            )}
+          </div>
         </div>
       )}
 

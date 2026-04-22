@@ -1,132 +1,201 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { FilesetResolver, HandLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
+import { useState, useEffect, useRef } from "react";
+import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
-export type GestureState = 'none' | 'rotate' | 'zoom' | 'pan';
+export type GestureState = "idle" | "tracking" | "grab";
 
-export function useHandGesture(enabled: boolean, videoRef: React.RefObject<HTMLVideoElement | null>) {
-  const [gestureState, setGestureState] = useState<GestureState>('none');
-  const [cameraMovement, setCameraMovement] = useState<{ type: GestureState; dx: number; dy: number; zoomDelta: number } | null>(null);
-  
+export interface HandFrame {
+  cursor: { x: number; y: number } | null; // normalized -1..1, mirrored
+  pinching: boolean;
+  pinchStrength: number; // 0 = wide, 1 = fully pinched
+  gesture: GestureState;
+}
+
+export function useHandGesture(
+  enabled: boolean,
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+) {
+  const [gestureState, setGestureState] = useState<GestureState>("idle");
+  const frameRef = useRef<HandFrame>({
+    cursor: null,
+    pinching: false,
+    pinchStrength: 0,
+    gesture: "idle",
+  });
+
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const requestRef = useRef<number | null>(null);
-  const lastPinchDistance = useRef<number | null>(null);
-  const lastIndexPos = useRef<{ x: number, y: number } | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Smoothed values (exponential moving average)
+  const smoothedCursor = useRef<{ x: number; y: number } | null>(null);
+  const smoothedPinch = useRef<number>(0);
+  // Sticky pinch with hysteresis
+  const pinchHeldRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!enabled) return;
-
-    let isMounted = true;
-    
-    async function initMediaPipe() {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-      );
-      const landmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-
-      if (isMounted) {
-        landmarkerRef.current = landmarker;
-      }
+    if (!enabled) {
+      // Reset state when disabled
+      frameRef.current = { cursor: null, pinching: false, pinchStrength: 0, gesture: "idle" };
+      setGestureState("idle");
+      smoothedCursor.current = null;
+      smoothedPinch.current = 0;
+      pinchHeldRef.current = false;
+      return;
     }
 
-    initMediaPipe();
-
-    return () => {
-      isMounted = false;
-      if (landmarkerRef.current) {
-        landmarkerRef.current.close();
-      }
-    };
-  }, [enabled]);
-
-  useEffect(() => {
-    if (!enabled || !videoRef.current || !landmarkerRef.current) return;
-
-    const video = videoRef.current;
-    
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (video) {
-          video.srcObject = stream;
-          video.addEventListener("loadeddata", predictWebcam);
-        }
-      } catch (err) {
-        console.error("Error accessing webcam", err);
-      }
-    }
-
+    let cancelled = false;
     let lastVideoTime = -1;
 
-    const predictWebcam = () => {
-      if (!video || !landmarkerRef.current) return;
-      
-      let startTimeMs = performance.now();
-      if (lastVideoTime !== video.currentTime) {
-        lastVideoTime = video.currentTime;
-        const results = landmarkerRef.current.detectForVideo(video, startTimeMs);
-        
-        if (results.landmarks && results.landmarks.length > 0) {
-          const landmarks = results.landmarks[0];
-          
-          const thumbTip = landmarks[4];
-          const indexTip = landmarks[8];
-          
-          const dist = Math.sqrt(
-            Math.pow(thumbTip.x - indexTip.x, 2) + 
-            Math.pow(thumbTip.y - indexTip.y, 2) + 
-            Math.pow(thumbTip.z - indexTip.z, 2)
-          );
-
-          const isPinching = dist < 0.05;
-          const currentPos = { x: indexTip.x, y: indexTip.y };
-
-          if (isPinching) {
-            setGestureState('zoom');
-            if (lastPinchDistance.current !== null) {
-              const zoomDelta = dist - lastPinchDistance.current;
-              setCameraMovement({ type: 'zoom', dx: 0, dy: 0, zoomDelta: zoomDelta * 100 });
-            }
-            lastPinchDistance.current = dist;
-            lastIndexPos.current = null;
-          } else {
-            setGestureState('rotate');
-            if (lastIndexPos.current !== null) {
-              const dx = currentPos.x - lastIndexPos.current.x;
-              const dy = currentPos.y - lastIndexPos.current.y;
-              setCameraMovement({ type: 'rotate', dx: -dx * 5, dy: dy * 5, zoomDelta: 0 });
-            }
-            lastIndexPos.current = currentPos;
-            lastPinchDistance.current = null;
-          }
-        } else {
-          setGestureState('none');
-          setCameraMovement(null);
-          lastIndexPos.current = null;
-          lastPinchDistance.current = null;
+    const init = async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm",
+        );
+        const landmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate: "GPU",
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+        if (cancelled) {
+          landmarker.close();
+          return;
         }
+        landmarkerRef.current = landmarker;
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: "user" },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+
+        const tick = () => {
+          if (cancelled) return;
+          const lm = landmarkerRef.current;
+          const v = videoRef.current;
+          if (!lm || !v || v.readyState < 2) {
+            requestRef.current = requestAnimationFrame(tick);
+            return;
+          }
+          if (lastVideoTime !== v.currentTime) {
+            lastVideoTime = v.currentTime;
+            const results = lm.detectForVideo(v, performance.now());
+            if (results.landmarks && results.landmarks.length > 0) {
+              const landmarks = results.landmarks[0]!;
+              const indexTip = landmarks[8]!;
+              const thumbTip = landmarks[4]!;
+              const wrist = landmarks[0]!;
+              const middleMcp = landmarks[9]!;
+
+              // Normalize hand size: distance wrist -> middle MCP gives a stable scale
+              const handScale = Math.hypot(
+                wrist.x - middleMcp.x,
+                wrist.y - middleMcp.y,
+              );
+
+              const rawDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+              const normDist = handScale > 0 ? rawDist / handScale : rawDist;
+
+              // Map normDist -> pinchStrength (1 closed, 0 open)
+              // Typical normDist ~ 0.1 (closed) .. 1.2 (wide open)
+              const minD = 0.15;
+              const maxD = 1.0;
+              const t = Math.max(0, Math.min(1, (maxD - normDist) / (maxD - minD)));
+              const pinchStrength = t;
+
+              // Hysteresis: enter pinch at >0.75, exit at <0.55
+              if (pinchHeldRef.current) {
+                if (pinchStrength < 0.55) pinchHeldRef.current = false;
+              } else {
+                if (pinchStrength > 0.75) pinchHeldRef.current = true;
+              }
+
+              // Mirror x because video is flipped horizontally for natural feel
+              const cursorRaw = { x: 1 - indexTip.x, y: indexTip.y };
+              // Convert to centered -1..1
+              const cursorCentered = {
+                x: cursorRaw.x * 2 - 1,
+                y: -(cursorRaw.y * 2 - 1),
+              };
+
+              // Smooth (EMA)
+              const alpha = 0.35;
+              if (!smoothedCursor.current) {
+                smoothedCursor.current = cursorCentered;
+              } else {
+                smoothedCursor.current = {
+                  x: smoothedCursor.current.x + (cursorCentered.x - smoothedCursor.current.x) * alpha,
+                  y: smoothedCursor.current.y + (cursorCentered.y - smoothedCursor.current.y) * alpha,
+                };
+              }
+              const pAlpha = 0.4;
+              smoothedPinch.current =
+                smoothedPinch.current + (pinchStrength - smoothedPinch.current) * pAlpha;
+
+              const gesture: GestureState = pinchHeldRef.current ? "grab" : "tracking";
+              frameRef.current = {
+                cursor: smoothedCursor.current,
+                pinching: pinchHeldRef.current,
+                pinchStrength: smoothedPinch.current,
+                gesture,
+              };
+              if (gesture !== gestureState) setGestureState(gesture);
+            } else {
+              // No hand detected — fade cursor away
+              smoothedCursor.current = null;
+              smoothedPinch.current = 0;
+              pinchHeldRef.current = false;
+              if (frameRef.current.gesture !== "idle") {
+                frameRef.current = { cursor: null, pinching: false, pinchStrength: 0, gesture: "idle" };
+                setGestureState("idle");
+              }
+            }
+          }
+          requestRef.current = requestAnimationFrame(tick);
+        };
+        requestRef.current = requestAnimationFrame(tick);
+      } catch (err) {
+        console.error("Hand gesture init failed", err);
       }
-      
-      requestRef.current = requestAnimationFrame(predictWebcam);
     };
 
-    startCamera();
+    init();
 
     return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
+      cancelled = true;
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      requestRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
-      if (video.srcObject) {
-        (video.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+      const v = videoRef.current;
+      if (v) v.srcObject = null;
+      if (landmarkerRef.current) {
+        landmarkerRef.current.close();
+        landmarkerRef.current = null;
       }
+      frameRef.current = { cursor: null, pinching: false, pinchStrength: 0, gesture: "idle" };
+      setGestureState("idle");
+      smoothedCursor.current = null;
+      smoothedPinch.current = 0;
+      pinchHeldRef.current = false;
     };
-  }, [enabled, videoRef.current, landmarkerRef.current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
-  return { gestureState, cameraMovement };
+  return { gestureState, frameRef };
 }
