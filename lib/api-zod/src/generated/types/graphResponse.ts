@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Insights } from "./insights";
 import type { Topology } from "./topology";
 
 export interface GraphResponse {
   centralized: Topology;
   decentralized: Topology;
   distributed: Topology;
+  insights: Insights;
 }

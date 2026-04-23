@@ -12,8 +12,6 @@ export interface Topology {
   name: string;
   nodes: GraphNode[];
   edges: GraphEdge[];
-  /** Nodes data as CSV */
   nodesCsv: string;
-  /** Edges data as CSV */
   edgesCsv: string;
 }

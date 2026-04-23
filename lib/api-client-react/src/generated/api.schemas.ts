@@ -9,9 +9,32 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface JournalEntry {
+  text: string;
+  /** ISO date yyyy-mm-dd */
+  date: string;
+  /** Unix epoch milliseconds */
+  timestamp: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  mood: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  energy: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  stress: number;
+}
+
 export interface GraphRequest {
   /** @minItems 2 */
-  notes: string[];
+  entries: JournalEntry[];
   /**
    * @minimum 0
    * @maximum 1
@@ -28,6 +51,16 @@ export interface GraphNode {
   y: number;
   z: number;
   cluster: number;
+  mood: number;
+  energy: number;
+  stress: number;
+  /** Sentiment score in [-1, 1] */
+  sentiment: number;
+  /** Count of similar entries (recurrence weight) */
+  frequency: number;
+  /** Unix epoch ms */
+  timestamp: number;
+  date: string;
 }
 
 export interface GraphEdge {
@@ -40,14 +73,74 @@ export interface Topology {
   name: string;
   nodes: GraphNode[];
   edges: GraphEdge[];
-  /** Nodes data as CSV */
   nodesCsv: string;
-  /** Edges data as CSV */
   edgesCsv: string;
+}
+
+export interface KeywordCount {
+  keyword: string;
+  count: number;
+}
+
+export interface RepeatedThought {
+  text: string;
+  count: number;
+}
+
+export interface Trigger {
+  keyword: string;
+  avgMoodWhen: number;
+  avgMoodOverall: number;
+  /** avgMoodWhen - avgMoodOverall (negative = drags mood down) */
+  delta: number;
+  occurrences: number;
+}
+
+export interface MoodPoint {
+  date: string;
+  timestamp: number;
+  avgMood: number;
+  avgEnergy: number;
+  avgStress: number;
+  avgSentiment: number;
+  count: number;
+}
+
+export type EmotionalTrendDirection =
+  (typeof EmotionalTrendDirection)[keyof typeof EmotionalTrendDirection];
+
+export const EmotionalTrendDirection = {
+  improving: "improving",
+  declining: "declining",
+  stable: "stable",
+} as const;
+
+export interface EmotionalTrend {
+  /** Mood units per day */
+  slope: number;
+  direction: EmotionalTrendDirection;
+  recentAvgMood: number;
+  overallAvgMood: number;
+}
+
+export type InsightsTimeRange = {
+  startTimestamp: number;
+  endTimestamp: number;
+};
+
+export interface Insights {
+  dominantThemes: KeywordCount[];
+  repeatedThoughts: RepeatedThought[];
+  triggers: Trigger[];
+  emotionalTrend: EmotionalTrend;
+  predictedNextMood: number;
+  moodSeries: MoodPoint[];
+  timeRange: InsightsTimeRange;
 }
 
 export interface GraphResponse {
   centralized: Topology;
   decentralized: Topology;
   distributed: Topology;
+  insights: Insights;
 }

@@ -103,8 +103,8 @@ export function useHealthCheck<
 }
 
 /**
- * Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
- * @summary Build a 3D knowledge graph from notes
+ * Takes structured entries (text + mood/energy/stress + date), computes embeddings, sentiment, keyword frequency, and returns three topologies plus a behavioural insights summary.
+ * @summary Build a 3D knowledge graph and behavioural insights from journal entries
  */
 export const getBuildGraphUrl = () => {
   return `/api/graph`;
@@ -167,7 +167,7 @@ export type BuildGraphMutationBody = BodyType<GraphRequest>;
 export type BuildGraphMutationError = ErrorType<unknown>;
 
 /**
- * @summary Build a 3D knowledge graph from notes
+ * @summary Build a 3D knowledge graph and behavioural insights from journal entries
  */
 export const useBuildGraph = <
   TError = ErrorType<unknown>,

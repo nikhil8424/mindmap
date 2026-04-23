@@ -13,4 +13,14 @@ export interface GraphNode {
   y: number;
   z: number;
   cluster: number;
+  mood: number;
+  energy: number;
+  stress: number;
+  /** Sentiment score in [-1, 1] */
+  sentiment: number;
+  /** Count of similar entries (recurrence weight) */
+  frequency: number;
+  /** Unix epoch ms */
+  timestamp: number;
+  date: string;
 }

@@ -15,10 +15,16 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
- * @summary Build a 3D knowledge graph from notes
+ * Takes structured entries (text + mood/energy/stress + date), computes embeddings, sentiment, keyword frequency, and returns three topologies plus a behavioural insights summary.
+ * @summary Build a 3D knowledge graph and behavioural insights from journal entries
  */
-export const buildGraphBodyNotesMin = 2;
+export const buildGraphBodyEntriesItemMoodMax = 10;
+
+export const buildGraphBodyEntriesItemEnergyMax = 10;
+
+export const buildGraphBodyEntriesItemStressMax = 10;
+
+export const buildGraphBodyEntriesMin = 2;
 
 export const buildGraphBodyThresholdDefault = 0.35;
 export const buildGraphBodyThresholdMin = 0;
@@ -28,7 +34,18 @@ export const buildGraphBodyClustersDefault = 3;
 export const buildGraphBodyClustersMin = 2;
 
 export const BuildGraphBody = zod.object({
-  notes: zod.array(zod.string()).min(buildGraphBodyNotesMin),
+  entries: zod
+    .array(
+      zod.object({
+        text: zod.string(),
+        date: zod.string().describe("ISO date yyyy-mm-dd"),
+        timestamp: zod.number().describe("Unix epoch milliseconds"),
+        mood: zod.number().min(1).max(buildGraphBodyEntriesItemMoodMax),
+        energy: zod.number().min(1).max(buildGraphBodyEntriesItemEnergyMax),
+        stress: zod.number().min(1).max(buildGraphBodyEntriesItemStressMax),
+      }),
+    )
+    .min(buildGraphBodyEntriesMin),
   threshold: zod
     .number()
     .min(buildGraphBodyThresholdMin)
@@ -51,6 +68,15 @@ export const BuildGraphResponse = zod.object({
         y: zod.number(),
         z: zod.number(),
         cluster: zod.number(),
+        mood: zod.number(),
+        energy: zod.number(),
+        stress: zod.number(),
+        sentiment: zod.number().describe("Sentiment score in [-1, 1]"),
+        frequency: zod
+          .number()
+          .describe("Count of similar entries (recurrence weight)"),
+        timestamp: zod.number().describe("Unix epoch ms"),
+        date: zod.string(),
       }),
     ),
     edges: zod.array(
@@ -60,8 +86,8 @@ export const BuildGraphResponse = zod.object({
         weight: zod.number(),
       }),
     ),
-    nodesCsv: zod.string().describe("Nodes data as CSV"),
-    edgesCsv: zod.string().describe("Edges data as CSV"),
+    nodesCsv: zod.string(),
+    edgesCsv: zod.string(),
   }),
   decentralized: zod.object({
     name: zod.string(),
@@ -73,6 +99,15 @@ export const BuildGraphResponse = zod.object({
         y: zod.number(),
         z: zod.number(),
         cluster: zod.number(),
+        mood: zod.number(),
+        energy: zod.number(),
+        stress: zod.number(),
+        sentiment: zod.number().describe("Sentiment score in [-1, 1]"),
+        frequency: zod
+          .number()
+          .describe("Count of similar entries (recurrence weight)"),
+        timestamp: zod.number().describe("Unix epoch ms"),
+        date: zod.string(),
       }),
     ),
     edges: zod.array(
@@ -82,8 +117,8 @@ export const BuildGraphResponse = zod.object({
         weight: zod.number(),
       }),
     ),
-    nodesCsv: zod.string().describe("Nodes data as CSV"),
-    edgesCsv: zod.string().describe("Edges data as CSV"),
+    nodesCsv: zod.string(),
+    edgesCsv: zod.string(),
   }),
   distributed: zod.object({
     name: zod.string(),
@@ -95,6 +130,15 @@ export const BuildGraphResponse = zod.object({
         y: zod.number(),
         z: zod.number(),
         cluster: zod.number(),
+        mood: zod.number(),
+        energy: zod.number(),
+        stress: zod.number(),
+        sentiment: zod.number().describe("Sentiment score in [-1, 1]"),
+        frequency: zod
+          .number()
+          .describe("Count of similar entries (recurrence weight)"),
+        timestamp: zod.number().describe("Unix epoch ms"),
+        date: zod.string(),
       }),
     ),
     edges: zod.array(
@@ -104,7 +148,56 @@ export const BuildGraphResponse = zod.object({
         weight: zod.number(),
       }),
     ),
-    nodesCsv: zod.string().describe("Nodes data as CSV"),
-    edgesCsv: zod.string().describe("Edges data as CSV"),
+    nodesCsv: zod.string(),
+    edgesCsv: zod.string(),
+  }),
+  insights: zod.object({
+    dominantThemes: zod.array(
+      zod.object({
+        keyword: zod.string(),
+        count: zod.number(),
+      }),
+    ),
+    repeatedThoughts: zod.array(
+      zod.object({
+        text: zod.string(),
+        count: zod.number(),
+      }),
+    ),
+    triggers: zod.array(
+      zod.object({
+        keyword: zod.string(),
+        avgMoodWhen: zod.number(),
+        avgMoodOverall: zod.number(),
+        delta: zod
+          .number()
+          .describe(
+            "avgMoodWhen - avgMoodOverall (negative = drags mood down)",
+          ),
+        occurrences: zod.number(),
+      }),
+    ),
+    emotionalTrend: zod.object({
+      slope: zod.number().describe("Mood units per day"),
+      direction: zod.enum(["improving", "declining", "stable"]),
+      recentAvgMood: zod.number(),
+      overallAvgMood: zod.number(),
+    }),
+    predictedNextMood: zod.number(),
+    moodSeries: zod.array(
+      zod.object({
+        date: zod.string(),
+        timestamp: zod.number(),
+        avgMood: zod.number(),
+        avgEnergy: zod.number(),
+        avgStress: zod.number(),
+        avgSentiment: zod.number(),
+        count: zod.number(),
+      }),
+    ),
+    timeRange: zod.object({
+      startTimestamp: zod.number(),
+      endTimestamp: zod.number(),
+    }),
   }),
 });

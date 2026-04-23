@@ -6,9 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./emotionalTrend";
+export * from "./emotionalTrendDirection";
 export * from "./graphEdge";
 export * from "./graphNode";
 export * from "./graphRequest";
 export * from "./graphResponse";
 export * from "./healthStatus";
+export * from "./insights";
+export * from "./insightsTimeRange";
+export * from "./journalEntry";
+export * from "./keywordCount";
+export * from "./moodPoint";
+export * from "./repeatedThought";
 export * from "./topology";
+export * from "./trigger";

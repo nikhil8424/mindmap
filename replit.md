@@ -26,7 +26,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## Artifacts
 
-- **thoughts** (`/`) — "Topologies of Thoughts" 3D knowledge graph. Notes are embedded with `Xenova/all-MiniLM-L6-v2` (transformers.js) on the server, similarity matrix + KMeans + force layout produce three topologies (centralized / decentralized / distributed), rendered with Three.js. Optional MediaPipe Hands gesture controls.
-- **api-server** (`/api`) — shared Express API. Adds `POST /api/graph` for embeddings + topology computation.
+- **thoughts** (`/`) — "Ideascape", a behavioural insight tool. Users log structured journal entries (text + date + mood/energy/stress 1–10). The server embeds entries with `Xenova/all-MiniLM-L6-v2`, runs sentiment scoring, keyword extraction, KMeans clustering, three topology layouts (centralized / decentralized / distributed), and computes insights (dominant themes, repeated thoughts, triggers, emotional trend, predicted next mood, mood time series). The frontend renders nodes in 3D (color = mood, size = frequency), with a timeline slider for temporal filtering, an insights panel, and optional MediaPipe Hands gesture controls (point/pinch/palm).
+- **api-server** (`/api`) — shared Express API. `POST /api/graph` accepts structured entries and returns three topologies plus a behavioural insights bundle.
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

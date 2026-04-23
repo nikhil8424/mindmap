@@ -7,6 +7,41 @@ export interface GraphNode {
   y: number;
   z: number;
   cluster: number;
+  mood: number;
+  energy: number;
+  stress: number;
+  sentiment: number;
+  frequency: number;
+  timestamp: number;
+  date: string;
+}
+
+export interface NodeEnrichment {
+  mood: number;
+  energy: number;
+  stress: number;
+  sentiment: number;
+  frequency: number;
+  timestamp: number;
+  date: string;
+}
+
+const EMPTY_ENRICH: NodeEnrichment = {
+  mood: 5, energy: 5, stress: 5, sentiment: 0, frequency: 1, timestamp: 0, date: "",
+};
+
+function enrichNode(
+  base: { id: number; text: string; x: number; y: number; z: number; cluster: number },
+  e: NodeEnrichment = EMPTY_ENRICH,
+): GraphNode {
+  return { ...base, ...e };
+}
+
+export function enrichNodes(
+  nodes: GraphNode[],
+  enrich: NodeEnrichment[],
+): GraphNode[] {
+  return nodes.map((n) => ({ ...n, ...(enrich[n.id] ?? EMPTY_ENRICH) }));
 }
 
 export interface GraphEdge {
@@ -173,23 +208,23 @@ export function centralizedLayout(
     const theta = phi * k;
     const distToCore = 1 - sim[core]![idx]!;
     const r = 4 + distToCore * 9; // 4..13
-    nodes[idx] = {
+    nodes[idx] = enrichNode({
       id: idx,
       text: texts[idx]!,
       x: Math.cos(theta) * radiusOnSphere * r,
       y: y * r,
       z: Math.sin(theta) * radiusOnSphere * r,
       cluster: labels[idx]!,
-    };
+    });
   });
-  nodes[core] = {
+  nodes[core] = enrichNode({
     id: core,
     text: texts[core]!,
     x: 0,
     y: 0,
     z: 0,
     cluster: labels[core]!,
-  };
+  });
   return nodes;
 }
 
@@ -229,14 +264,14 @@ export function decentralizedLayout(
       const angle = (j / Math.max(group.length, 1)) * Math.PI * 2;
       const elev = ((j % 5) - 2) * 0.6;
       const r = 3 + (j % 3) * 0.6;
-      nodes[idx] = {
+      nodes[idx] = enrichNode({
         id: idx,
         text: texts[idx]!,
         x: hub.x + Math.cos(angle) * r,
         y: hub.y + elev,
         z: hub.z + Math.sin(angle) * r,
         cluster: labels[idx]!,
-      };
+      });
     });
   });
   return nodes;
@@ -343,7 +378,7 @@ export function distributedLayout(
   const _useEdges = edges;
   void _useEdges;
 
-  return pos.map((p, i) => ({
+  return pos.map((p, i) => enrichNode({
     id: i,
     text: texts[i]!,
     x: p[0],
@@ -428,10 +463,10 @@ function csvEscape(v: string | number): string {
 }
 
 export function nodesToCsv(nodes: GraphNode[]): string {
-  const header = "id,cluster,x,y,z,text";
+  const header = "id,cluster,date,timestamp,mood,energy,stress,sentiment,frequency,x,y,z,text";
   const rows = nodes.map(
     (n) =>
-      `${n.id},${n.cluster},${n.x.toFixed(4)},${n.y.toFixed(4)},${n.z.toFixed(4)},${csvEscape(n.text)}`,
+      `${n.id},${n.cluster},${n.date},${n.timestamp},${n.mood},${n.energy},${n.stress},${n.sentiment.toFixed(3)},${n.frequency},${n.x.toFixed(4)},${n.y.toFixed(4)},${n.z.toFixed(4)},${csvEscape(n.text)}`,
   );
   return [header, ...rows].join("\n");
 }

@@ -5,10 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { JournalEntry } from "./journalEntry";
 
 export interface GraphRequest {
   /** @minItems 2 */
-  notes: string[];
+  entries: JournalEntry[];
   /**
    * @minimum 0
    * @maximum 1

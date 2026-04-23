@@ -29,8 +29,8 @@ paths:
     post:
       operationId: buildGraph
       tags: [graph]
-      summary: Build a 3D knowledge graph from notes
-      description: Takes notes, computes embeddings + cosine similarity, and returns three topologies (centralized, decentralized, distributed).
+      summary: Build a 3D knowledge graph and behavioural insights from journal entries
+      description: Takes structured entries (text + mood/energy/stress + date), computes embeddings, sentiment, keyword frequency, and returns three topologies plus a behavioural insights summary.
       requestBody:
         required: true
         content:
@@ -53,13 +53,37 @@ components:
           type: string
       required:
         - status
+    JournalEntry:
+      type: object
+      properties:
+        text:
+          type: string
+        date:
+          type: string
+          description: ISO date yyyy-mm-dd
+        timestamp:
+          type: integer
+          description: Unix epoch milliseconds
+        mood:
+          type: integer
+          minimum: 1
+          maximum: 10
+        energy:
+          type: integer
+          minimum: 1
+          maximum: 10
+        stress:
+          type: integer
+          minimum: 1
+          maximum: 10
+      required: [text, date, timestamp, mood, energy, stress]
     GraphRequest:
       type: object
       properties:
-        notes:
+        entries:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/JournalEntry"
           minItems: 2
         threshold:
           type: number
@@ -71,7 +95,7 @@ components:
           minimum: 2
           default: 3
       required:
-        - notes
+        - entries
     GraphNode:
       type: object
       properties:
@@ -87,7 +111,24 @@ components:
           type: number
         cluster:
           type: integer
-      required: [id, text, x, y, z, cluster]
+        mood:
+          type: integer
+        energy:
+          type: integer
+        stress:
+          type: integer
+        sentiment:
+          type: number
+          description: Sentiment score in [-1, 1]
+        frequency:
+          type: integer
+          description: Count of similar entries (recurrence weight)
+        timestamp:
+          type: integer
+          description: Unix epoch ms
+        date:
+          type: string
+      required: [id, text, x, y, z, cluster, mood, energy, stress, sentiment, frequency, timestamp, date]
     GraphEdge:
       type: object
       properties:
@@ -113,11 +154,104 @@ components:
             $ref: "#/components/schemas/GraphEdge"
         nodesCsv:
           type: string
-          description: Nodes data as CSV
         edgesCsv:
           type: string
-          description: Edges data as CSV
       required: [name, nodes, edges, nodesCsv, edgesCsv]
+    KeywordCount:
+      type: object
+      properties:
+        keyword:
+          type: string
+        count:
+          type: integer
+      required: [keyword, count]
+    RepeatedThought:
+      type: object
+      properties:
+        text:
+          type: string
+        count:
+          type: integer
+      required: [text, count]
+    Trigger:
+      type: object
+      properties:
+        keyword:
+          type: string
+        avgMoodWhen:
+          type: number
+        avgMoodOverall:
+          type: number
+        delta:
+          type: number
+          description: avgMoodWhen - avgMoodOverall (negative = drags mood down)
+        occurrences:
+          type: integer
+      required: [keyword, avgMoodWhen, avgMoodOverall, delta, occurrences]
+    MoodPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        timestamp:
+          type: integer
+        avgMood:
+          type: number
+        avgEnergy:
+          type: number
+        avgStress:
+          type: number
+        avgSentiment:
+          type: number
+        count:
+          type: integer
+      required: [date, timestamp, avgMood, avgEnergy, avgStress, avgSentiment, count]
+    EmotionalTrend:
+      type: object
+      properties:
+        slope:
+          type: number
+          description: Mood units per day
+        direction:
+          type: string
+          enum: [improving, declining, stable]
+        recentAvgMood:
+          type: number
+        overallAvgMood:
+          type: number
+      required: [slope, direction, recentAvgMood, overallAvgMood]
+    Insights:
+      type: object
+      properties:
+        dominantThemes:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeywordCount"
+        repeatedThoughts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepeatedThought"
+        triggers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trigger"
+        emotionalTrend:
+          $ref: "#/components/schemas/EmotionalTrend"
+        predictedNextMood:
+          type: number
+        moodSeries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodPoint"
+        timeRange:
+          type: object
+          properties:
+            startTimestamp:
+              type: integer
+            endTimestamp:
+              type: integer
+          required: [startTimestamp, endTimestamp]
+      required: [dominantThemes, repeatedThoughts, triggers, emotionalTrend, predictedNextMood, moodSeries, timeRange]
     GraphResponse:
       type: object
       properties:
@@ -127,4 +261,6 @@ components:
           $ref: "#/components/schemas/Topology"
         distributed:
           $ref: "#/components/schemas/Topology"
-      required: [centralized, decentralized, distributed]
+        insights:
+          $ref: "#/components/schemas/Insights"
+      required: [centralized, decentralized, distributed, insights]
