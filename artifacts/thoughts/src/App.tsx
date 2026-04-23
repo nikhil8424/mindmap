@@ -35,7 +35,7 @@ function Home() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { gestureState, frameRef } = useHandGesture(gestureEnabled, videoRef);
+  const { gestureMode, frameRef } = useHandGesture(gestureEnabled, videoRef);
 
   const buildGraph = useBuildGraph();
 
@@ -158,18 +158,22 @@ function Home() {
                   <span className="flex items-center gap-1">
                     <span
                       className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                        gestureState === 'grab'
+                        gestureMode === 'pinch'
                           ? 'bg-pink-400'
-                          : gestureState === 'tracking'
+                          : gestureMode === 'palm'
+                          ? 'bg-amber-300'
+                          : gestureMode === 'point'
                           ? 'bg-cyan-300'
                           : 'bg-white/40'
                       }`}
                     />
-                    {gestureState === 'grab'
-                      ? 'grab'
-                      : gestureState === 'tracking'
-                      ? 'tracking'
-                      : 'looking for hand'}
+                    {gestureMode === 'pinch'
+                      ? 'pinch — scale'
+                      : gestureMode === 'palm'
+                      ? 'palm — rotate'
+                      : gestureMode === 'point'
+                      ? 'point — drag'
+                      : 'show your hand'}
                   </span>
                 )}
               </div>
@@ -195,12 +199,14 @@ function Home() {
             muted
           />
           <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-black/60 text-white/80 backdrop-blur">
-            {gestureState === 'grab' ? (
-              <span className="text-pink-300">GRAB</span>
-            ) : gestureState === 'tracking' ? (
-              <span className="text-cyan-300">TRACK</span>
+            {gestureMode === 'pinch' ? (
+              <span className="text-pink-300">PINCH</span>
+            ) : gestureMode === 'palm' ? (
+              <span className="text-amber-300">PALM</span>
+            ) : gestureMode === 'point' ? (
+              <span className="text-cyan-300">POINT</span>
             ) : (
-              <span className="text-white/50">SEARCHING</span>
+              <span className="text-white/50">IDLE</span>
             )}
           </div>
         </div>
