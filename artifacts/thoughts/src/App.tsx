@@ -78,12 +78,35 @@ function Home() {
       <div className="absolute top-0 left-0 h-full w-full pointer-events-none p-6 flex flex-col justify-between">
         <header className="pointer-events-auto">
           <h1 className="text-3xl font-serif tracking-tight text-white/90 drop-shadow-md">
-            Topologies of Thoughts
+            Ideascape
           </h1>
           <p className="text-sm text-white/60 font-mono mt-1">A meditative thinking tool</p>
         </header>
 
-        <div className="w-80 glass-panel rounded-xl p-5 pointer-events-auto flex flex-col gap-4 self-end shrink-0 shadow-2xl">
+        <div className="self-end flex flex-col items-end gap-3 pointer-events-auto">
+          {gestureEnabled && (
+            <div className="w-80 aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-2xl relative">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover scale-x-[-1]"
+                autoPlay
+                playsInline
+                muted
+              />
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-black/60 text-white/80 backdrop-blur">
+                {gestureMode === 'pinch' ? (
+                  <span className="text-pink-300">PINCH</span>
+                ) : gestureMode === 'palm' ? (
+                  <span className="text-amber-300">PALM</span>
+                ) : gestureMode === 'point' ? (
+                  <span className="text-cyan-300">POINT</span>
+                ) : (
+                  <span className="text-white/50">IDLE</span>
+                )}
+              </div>
+            </div>
+          )}
+        <div className="w-80 glass-panel rounded-xl p-5 flex flex-col gap-4 shrink-0 shadow-2xl">
           <div className="space-y-2">
             <Label className="text-xs text-white/70 uppercase tracking-wider font-mono">Stream of consciousness</Label>
             <Textarea 
@@ -185,32 +208,9 @@ function Home() {
             />
           </div>
         </div>
+        </div>
 
       </div>
-
-      {/* Webcam Preview */}
-      {gestureEnabled && (
-        <div className="absolute bottom-6 left-6 w-40 aspect-video bg-black rounded-lg overflow-hidden border border-white/10 shadow-lg z-50">
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover scale-x-[-1]"
-            autoPlay
-            playsInline
-            muted
-          />
-          <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-black/60 text-white/80 backdrop-blur">
-            {gestureMode === 'pinch' ? (
-              <span className="text-pink-300">PINCH</span>
-            ) : gestureMode === 'palm' ? (
-              <span className="text-amber-300">PALM</span>
-            ) : gestureMode === 'point' ? (
-              <span className="text-cyan-300">POINT</span>
-            ) : (
-              <span className="text-white/50">IDLE</span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Node Tooltip */}
       {selectedNode && (
